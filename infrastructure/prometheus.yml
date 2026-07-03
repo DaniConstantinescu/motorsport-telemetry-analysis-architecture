@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'edge_server'
+    static_configs:
+      - targets: ['edge_server:8000']
+
+  - job_name: 'team_cloud'
+    static_configs:
+      - targets: ['team_cloud:8100']

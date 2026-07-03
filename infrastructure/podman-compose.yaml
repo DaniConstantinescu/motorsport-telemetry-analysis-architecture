@@ -1,0 +1,111 @@
+version: "3.9"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  team_cloud:
+    build: ../team_cloud
+    env_file:
+      - ../team_cloud/.env
+    depends_on:
+      - rabbitmq
+    ports:
+      - "8100:8100"
+    volumes:
+      - ./logs:/logs:Z
+      - ./logs:/app/logs
+
+  mosquitto:
+    build: ./mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosq_data:/mosquitto/data
+      - mosq_log:/mosquitto/log
+
+#  Without toxiproxy
+  edge_server:
+    build: ../edge_server
+    env_file:
+      - ../edge_server/.env
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+    depends_on:
+      - mosquitto
+      - rabbitmq
+    volumes:
+      - ./logs:/logs:Z
+      - ./logs:/app/logs
+
+  device1:
+    build: ../edge_device
+    env_file:
+      - ../edge_device/.env
+    environment:
+      DATA_FILE: /data/car1.csv
+    volumes:
+      - ./data:/data:ro
+    depends_on:
+      - mosquitto
+
+  device2:
+    build: ../edge_device
+    env_file:
+      - ../edge_device/.env
+    environment:
+      DATA_FILE: /data/car2.csv
+    volumes:
+      - ./data:/data:ro
+    depends_on:
+      - mosquitto
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:Z
+    ports:
+      - "9090:9090"
+    depends_on:
+      - edge_server
+      - team_cloud
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml:Z
+      - ./logs:/logs:Z  # Promtail also looks in /logs
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:Z
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:Z
+    depends_on:
+      - prometheus
+
+
+volumes:
+  mosq_data:
+  mosq_log:
+  grafana_data:
+  edge_logs:

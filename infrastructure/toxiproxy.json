@@ -1,0 +1,30 @@
+[
+  {
+    "name": "rabbitmq_england_japan",
+    "listen": "0.0.0.0:5672",
+    "upstream": "rabbitmq:5672",
+    "enabled": true,
+    "toxics": [
+      {
+        "name": "england_to_japan_latency",
+        "type": "latency",
+        "stream": "upstream",
+        "toxicity": 1.0,
+        "attributes": {
+          "latency": 250,
+          "jitter": 35
+        }
+      },
+      {
+        "name": "japan_to_england_latency",
+        "type": "latency",
+        "stream": "downstream",
+        "toxicity": 1.0,
+        "attributes": {
+          "latency": 250,
+          "jitter": 35
+        }
+      }
+    ]
+  }
+]
